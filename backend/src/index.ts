@@ -7,63 +7,77 @@ import { z } from "zod"
 const server = express()
 
 server.use(cors())
+server.use(express.json())
 
-type User = {
+type Student = {
   id: number
   name: string
-  age: number
+  status: boolean
 }
 
-const parse = (data: string): User[] => data
-    .split("\n")
-    .filter(row => !!row)
-    .map(row => ({
-      id: +row.split(",")[0],
-      name: row.split(",")[1],
-      age: +row.split(",")[2],
-    }))
-
-// REST API - GET (method) /api/users (path) -> array
-/* server.get("/api/users", async (req: Request, res: Response) => {
-
-  const userData = await fs.readFile("./database/users.txt", "utf-8")
-
-  const response: User[] = parse(userData)
-
-  res.json(response)
-}) */
-
-const QuerySchema = z.object({
+const BodySchema = z.object({
   name: z.string(),
 })
 
-// GET /api/users?name=John   /api/users?age=30&name=John  -> array
-/* server.get("/api/users", async (req: Request, res: Response) => {
+server.get("/", async (req: Request, res: Response) => {
+  res.send("<h1>Hello World! It's Codecool</h1>")
+})
 
-  const result = QuerySchema.safeParse(req.query)
-  if (!result.success)
-    return res.sendStatus(400)
-  const query = result.data
+server.get("/api/users",async (req: Request, res: Response) => {
+  const userData = await fs.readFile("./database/students.json","utf-8")
+  const students:Student[] = JSON.parse(userData)
 
-  const userData = await fs.readFile("./database/users.txt", "utf-8")
-  const users = parse(userData)
-  let filteredUsers = users.filter(user => user.name.includes(query.name))
+  res.send(students)
+})
 
-  res.json(filteredUsers)
-}) */
-
-// GET /api/users/15 (id!!!!) path variable -> 1 object
 server.get("/api/users/:id", async (req: Request, res: Response) => {
   const id = +req.params.id
 
-  const userData = await fs.readFile("./database/users.txt", "utf-8")
-  const users = parse(userData)
-  let filteredUser = users.find(user => user.id === id)
+  const userData = await fs.readFile("./database/students.json","utf-8")
+  const students:Student[] = JSON.parse(userData)
+  const student = students.find(student => student.id === id)
 
-  if (!filteredUser)
+  if (!student)
     return res.sendStatus(404)
 
-  res.json(filteredUser)
+  res.json(student)
 })
+
+server.get("/api/status/active",async (req: Request, res: Response) => {
+
+
+  const userData = await fs.readFile("./database/students.json","utf-8")
+  const students:Student[] = JSON.parse(userData)
+  const activeStudents: Student[] = students.filter((student) => student.status === true)
+
+  res.send(activeStudents)
+})
+
+server.get("/api/status/finished",async (req: Request, res: Response) => {
+  const userData = await fs.readFile("./database/students.json","utf-8")
+  const students:Student[] = JSON.parse(userData)
+  const finishedStudents: Student[] = students.filter((student) => student.status === false)
+
+  res.send(finishedStudents)
+})
+
+server.post("/api/students", async (req: Request, res: Response) => {
+
+  const result = BodySchema.safeParse(req.body)
+  if (!result.success) 
+    return res.sendStatus(400)
+  
+  const body = result.data
+
+  const userData = await fs.readFile("./database/students.json","utf-8")
+  const students:Student[] = JSON.parse(userData)
+
+  const student:Student = {id: students.length+1, name: body.name, status: true}
+  students.push(student)
+
+  await fs.writeFile("./database/students.json", JSON.stringify(students), "utf-8")
+  res.json(students)
+})
+
 
 server.listen(3333)
